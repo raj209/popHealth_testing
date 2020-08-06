@@ -97,7 +97,6 @@ module CqlBundle
     end
 
     def self.unpack_and_store_valuesets(zip, bundle)
-      #puts "*** Im in unpack and store valuesets ***"
       current_row = nil
       previous_row = nil
       codes = []
@@ -164,7 +163,6 @@ module CqlBundle
         doc.root.add_namespace_definition('cda', 'urn:hl7-org:v3')
         doc.root.add_namespace_definition('sdtc', 'urn:hl7-org:sdtc')
         patient = QRDA::Cat1::PatientImporter.instance.parse_cat1(doc)
-        end
         patient['bundleId'] = bundle.id
         patient.update(_type: CQM::BundlePatient, correlation_id: bundle.id)
         CqlData::QRDAPostProcessor.replace_negated_codes(patient, bundle)
