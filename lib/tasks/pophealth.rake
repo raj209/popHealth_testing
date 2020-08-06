@@ -84,14 +84,14 @@ namespace :pophealth do
     nlm_user = ENV["nlm_user"]
     nlm_passwd = ENV["nlm_pass"]
     measures_dir = File.join(Rails.root, "bundles")
-    #while nlm_user.nil? || nlm_user == ""
-      #nlm_user = ask("NLM Username?: "){ |q| q.readline = true }
-    #end
+    while nlm_user.nil? || nlm_user == ""
+      nlm_user = ask("NLM Username?: "){ |q| q.readline = true }
+    end
 
-    #while nlm_passwd.nil? || nlm_passwd == ""
-      #nlm_passwd = ask("NLM Password?: "){ |q| q.echo = false
-      #                                                q.readline = true }
-    #end
+    while nlm_passwd.nil? || nlm_passwd == ""
+      nlm_passwd = ask("NLM Password?: "){ |q| q.echo = false
+                                                      q.readline = true }
+    end
 
     bundle_version = ENV["version"] || APP_CONFIG["default_bundle"] || "latest"
     @bundle_name = "bundle-#{bundle_version}.1.1.zip"
@@ -107,7 +107,7 @@ namespace :pophealth do
     while bundle.nil? && tries < max_tries do
       tries = tries + 1
       begin
-        bundle = open(bundle_uri, :proxy => ENV["http_proxy"],:http_basic_authentication=>['giriraj', 'Icanwin1'] )
+        bundle = open(bundle_uri, :proxy => ENV["http_proxy"],:http_basic_authentication=>[nlm_user, nlm_passwd] )
       rescue OpenURI::HTTPError => oe
         last_error = oe
         if oe.message == "401 Unauthorized"
