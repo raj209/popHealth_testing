@@ -102,7 +102,8 @@ module CQM
         pipeline << {'$project' => {'category' => '$_id', 'measures' => 1, '_id' => 0}}
 
         pipeline << {'$sort' => {"category" => 1}}
-        Mongoid.default_client.command(aggregate: 'measures', pipeline: pipeline, explain: false).documents[0]["cursor"]["firstBatch"]
+        Mongoid.default_client.command(aggregate: 'measures', pipeline: pipeline, explain: false).documents[0]["result"] 
+        #Mongoid.default_client.command(aggregate: 'measures', pipeline: pipeline, explain: false).documents[0]["cursor"]["firstBatch"]
       end
 
   end

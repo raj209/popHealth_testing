@@ -29,9 +29,9 @@ module CqlBundle
 
         unpack_and_store_valuesets(zip_file, bundle)
         unpack_and_store_measures(zip_file, bundle)
-        unpack_and_store_cqm_patients(zip_file, bundle)
+        #unpack_and_store_cqm_patients(zip_file, bundle)
         #unpack_and_store_calcuations(zip_file, bundle, tracker)
-        calculate_results(bundle, tracker, include_highlighting) unless unpack_and_store_calcuations(zip_file, bundle, tracker)
+        #calculate_results(bundle, tracker, include_highlighting) unless unpack_and_store_calcuations(zip_file, bundle, tracker)
       end
 
       bundle
