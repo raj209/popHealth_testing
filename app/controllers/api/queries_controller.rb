@@ -199,8 +199,6 @@ module Api
 
           CQM::Patient.all.each do |p|
             if p.providers.first._id.to_s == providers.first
-              puts "inside if provider id "
-              puts p._id
                 @pids << p._id.to_s
                 @patients << p
             end
@@ -210,6 +208,8 @@ module Api
             qdm_patients = @patients.map(&:qdmPatient)
             measure = Measure.where(hqmf_id: params[:measure_id]).first
             individual_results = CQM::IndividualResult.where('measure_id' => measure._id).first
+            options[:effectiveDateEnd] = Time.at(options[:effective_date]).strftime("%Y%m%d%H%M%S")
+            options[:effectiveDate] = Time.at(options[:start_date]).strftime("%Y%m%d%H%M%S")
           if !individual_results
             calc_job = Cypress::CqmExecutionCalc.new(qdm_patients,
                                              @msrs,
@@ -220,6 +220,7 @@ module Api
           rescue Exception => e
             puts "Error in calculation"
             puts e.message
+            puts e.backtrace.inspect
           end
             erc = Cypress::ExpectedResultsCalculator.new(@patients,options[:test_id],options[:effective_date],options[:start_date],params[:sub_id], options[:filters], true)
             @results = erc.aggregate_results_for_measures(@msrs)
