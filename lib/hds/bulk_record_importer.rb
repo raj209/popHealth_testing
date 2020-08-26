@@ -196,12 +196,73 @@ class BulkRecordImporter
     end
     begin
     patient_data.qdmPatient.extendedData = {:provider_performances => prov_perf}
-    patient_data.save(validate: false)
+    cqm_patient = self.checkdedup(patient_data, practice_id)
+    cqm_patient.save(validate: false)
+    #patient_data.save(validate: false)
     rescue Exception => e
       puts e.message
       Delayed::Worker.logger.info(e.message)
     end
   end
+  def self.checkdedup(patient_data, practice_id=nil)
+    db = Mongoid.default_client
+    #mrn = qdm_patient.extendedData['medical_record_number']
+    first = patient_data.givenNames[0]
+    last = patient_data.familyName
+    street = patient_data.addresses.first.street.first
+    city =  patient_data.addresses.first.city
+    state = patient_data.addresses.first.state
+    zip = patient_data.addresses.first.zip
+    dob = patient_data.qdmPatient.birthDatetime
+    
+    demochange_pipeline = []
+    demochange_pipeline << {'$match' => { '$or' => [
+      {givenNames: first, familyName: last, 'addresses.street': street, 'addresses.city': city, 'addresses.state': state, 'addresses.zip': zip, 'qdmPatient.birthDatetime': dob},
+      {givenNames: first, 'addresses.street': street, 'addresses.city': city, 'addresses.state': state, 'addresses.zip': zip, 'qdmPatient.birthDatetime': dob},
+      {familyName: last, 'addresses.street': street, 'addresses.city': city, 'addresses.state': state, 'addresses.zip': zip, 'qdmPatient.birthDatetime': dob}  
+    ]}}
+    result =  db['cqm_patients'].aggregate(demochange_pipeline)
+
+    if result.first
+      existing_patient = CQM::Patient.where("_id": result.first._id).first
+      existing_patient.update_attributes(patient_data.attributes.except("_id", "qdmPatient"))
+      #existing.update_attributes!(qdm_patient.attributes.except("_id", "extendedData", "practice_id", "dataElements"))
+      #existing.extendedData.update(qdm_patient.extendedData.except("medical_record_number"))
+      existing_patient = self.update_dataelements(existing_patient, patient_data)
+      existing_patient
+    else
+      patient_data
+    end
+  end
+
+  def self.update_dataelements(existing, incoming)
+
+    incoming.qdmPatient.dataElements.each do |de|
+      query={}
+      section = "qdmPatient.dataElements"
+      query = {'_id': existing._id,section => {'$elemMatch' => {}}}
+
+      if de["_type"]
+        query[section]['$elemMatch']["_type"] = de["_type"]
+      end
+
+      if de["relevantPeriod"]
+        query[section]['$elemMatch']["relevantPeriod.low"] = de["relevantPeriod"][:low] if de["relevantPeriod"][:low]
+        query[section]['$elemMatch']["relevantPeriod.high"] = de["relevantPeriod"][:high] if de["relevantPeriod"][:high]
+      end
+      
+      if de["dataElementCodes"]
+        query[section]['$elemMatch']['dataElementCodes'] = de['dataElementCodes']
+      end
+
+      is_available = CQM::Patient.where(query).first
+      if is_available == nil
+        existing.qdmPatient.dataElements.push(de)
+      end    
+    end
+    existing
+  end
+end
 
 =begin
   def self.checkdedup(qdm_patient, practice_id=nil)
@@ -245,4 +306,4 @@ class BulkRecordImporter
     existing
   end
 =end
-end
+#end
