@@ -88,6 +88,8 @@ class BulkRecordImporter
 
           patient_data = QRDA::Cat1::PatientImporter.instance.parse_cat1(doc)
           patient_data.bundleId = Bundle.all.first.id
+          bundle = Bundle.all.first
+          CqlData::QRDAPostProcessor.replace_negated_codes(patient_data, bundle)
         rescue Exception => e
           puts "UNABLE TO IMPORT PATIENT RECORD"
           puts e.message

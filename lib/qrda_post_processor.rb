@@ -2,32 +2,14 @@ module CqlData
   module QRDAPostProcessor
     # checks for placeholder negation code_system
     def self.replace_negated_codes(patient, bundle)
-      val = false
       patient.qdmPatient.dataElements.each do |de|
-        if de['negationRationale']
-          if de.codes != nil?
-            de.codes.each do |c|
-                    if c.try(:codeSystemOid)
-                      if c['codeSystemOid'] == '1.2.3.4.5.6.7.8.9.10'
-                        val = true
-                      end
-                    end
-                  end
-          else
-            puts "de.codes is nil"
-          end
-        else
-          #puts "there is no negation negationRationale"
-        end 
-        select_negated_code(de, bundle) if de['negationRationale'] && val
-        #select_negated_code(de, bundle) if de['negationRationale'] && de.codes.find { |c| c.codeSystemOid == '1.2.3.4.5.6.7.8.9.10' }
+        select_negated_code(de, bundle) if de['negationRationale'] && de.codes.find { |c| c.codeSystemOid == '1.2.3.4.5.6.7.8.9.10' }
       end
     end
 
     # use "code" (which is used to store the valuset) to find an appropriate actual code to use for calculation
     def self.select_negated_code(data_element, bundle)
-      #puts "*** Im in select negated code ***"
-      negated_element = data_element.dataElementCodes.map { |dec| dec if dec['codeSystemOid'] == '1.2.3.4.5.6.7.8.9.10' }.first
+      negated_element = data_element.dataElementCodes.map { |dec| dec if dec.codeSystemOid == '1.2.3.4.5.6.7.8.9.10' }.first
       negated_vs = negated_element.code
       # If Cypress has a default code selected, use it.  Otherwise, use the first in the valueset.
       code = if bundle.default_negation_codes && bundle.default_negation_codes[negated_vs]
@@ -48,7 +30,7 @@ module CqlData
         next unless de['negationRationale']
 
         de.codes.each do |c|
-          next unless c['codeSystemOid'] != '1.2.3.4.5.6.7.8.9.10' && !drc_codes.include?(c.code)
+          next unless c.codeSystemOid != '1.2.3.4.5.6.7.8.9.10' && !drc_codes.include?(c.code)
 
           # pull relevant measures from patient if possible
           vs_ids = measures.map(&:value_set_ids).flatten.uniq
