@@ -87,6 +87,7 @@ class BulkRecordImporter
         begin
 
           patient_data = QRDA::Cat1::PatientImporter.instance.parse_cat1(doc)
+          patient_data = self.update_address(patient_data, doc)
           patient_data.bundleId = Bundle.all.first.id
           bundle = Bundle.all.first
           CqlData::QRDAPostProcessor.replace_negated_codes(patient_data, bundle)
@@ -205,6 +206,31 @@ class BulkRecordImporter
       puts e.message
       Delayed::Worker.logger.info(e.message)
     end
+  end
+
+  def self.update_address(patient_data, doc)
+    patient_role_element = doc.at_xpath('/cda:ClinicalDocument/cda:recordTarget/cda:patientRole')
+    patient_data[:addresses] = patient_role_element.xpath("./cda:addr").map { |addr| self.import_address(addr) }
+    patient_data[:telecoms] = patient_role_element.xpath("./cda:telecom").map { |tele| self.import_telecom(tele) }
+    patient_data
+  end
+
+  def self.import_address(address_element)
+    address = CQM::Address.new
+    address.use = address_element['use']
+    address.street = address_element.xpath("./cda:streetAddressLine").map {|street| street.text}
+    address.city = address_element.at_xpath("./cda:city").try(:text)
+    address.state = address_element.at_xpath("./cda:state").try(:text)
+    address.zip = address_element.at_xpath("./cda:postalCode").try(:text)
+    address.country = address_element.at_xpath("./cda:country").try(:text)
+    address
+  end
+
+  def self.import_telecom(telecom_element) 
+     tele = CQM::Telecom.new
+     tele.value = telecom_element['value']
+     tele.use = telecom_element['use']
+     tele
   end
   def self.checkdedup(patient_data, practice_id=nil)
     db = Mongoid.default_client

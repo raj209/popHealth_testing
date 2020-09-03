@@ -6,6 +6,7 @@ class HomeController < ApplicationController
     @patient_count = CQM::Patient.count
     @categories = Measure.categories([:lower_is_better, :reporting_program_type])
     cats = transformcategories(@categories)
+    cats = add_populations(cats)
     cats.each do |cat|
       cat.measures.each do |mes|
         mes['id'] = mes['hqmf_id']
@@ -62,6 +63,23 @@ class HomeController < ApplicationController
     end
    cats
   end
+
+def add_populations(categories)
+ cats = categories
+    cats.each do |singlecat|
+      singlecat.measures.each do |mes|
+        mes["populations"] = mes["populations"].flatten
+        if mes.sub_ids.empty? && mes.populations.length >= 2
+          mes["subs"] = []
+          mes["populations"].each do |pop|
+            mes.subs << {"sub_id": pop, "short_subtitle": pop}
+           end
+           mes["sub_ids"] = mes["populations"]
+        end
+      end
+    end
+    cats
+end
 
 private
   def validate_authorization!

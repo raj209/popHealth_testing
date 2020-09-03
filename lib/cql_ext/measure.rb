@@ -77,6 +77,7 @@ module CQM
                                     '_id' => "$_id",
                                     'subs' => {'$push' => {"sub_id" => "$population_sets.stratifications.stratification_id", "short_subtitle" => "$population_sets.stratifications.title"}},
                                     'sub_ids' => {'$push' => "$population_sets.stratifications.stratification_id"},
+                                    'populations' => {'$push' => "$population_sets.population_set_id"},
                                     'category' => {'$first' => "$category"}
                                   }) do |h, prop|
                                     h[prop] = {"$first" => "$#{prop}"}
@@ -91,7 +92,8 @@ module CQM
                                       'id' => "$_id",
                                       'hqmf_id' => "$_id",
                                       'subs' => "$subs",
-                                      'sub_ids' => "$sub_ids"
+                                      'sub_ids' => "$sub_ids",
+                                      'populations' => "$populations"
                                     }) do |h, prop|
                                       h[prop] = "$#{prop}"
                                       h
