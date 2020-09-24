@@ -273,7 +273,14 @@ class BulkRecordImporter
       if de["_type"]
         query[section]['$elemMatch']["_type"] = de["_type"]
       end
+      if de["result"]
+        query[section]['$elemMatch']["result"] = de["result"]
+      end
 
+      if de["authorDatetime"]
+        query[section]['$elemMatch']["authorDatetime"] = de["authorDatetime"]
+      end
+      
       if de["relevantPeriod"]
         query[section]['$elemMatch']["relevantPeriod.low"] = de["relevantPeriod"][:low] if de["relevantPeriod"][:low]
         query[section]['$elemMatch']["relevantPeriod.high"] = de["relevantPeriod"][:high] if de["relevantPeriod"][:high]
