@@ -35,14 +35,14 @@ class Thorax.Views.ResultsView extends Thorax.View
           d3.select(@el).select('.pop-chart').datum(_(lower_is_better: @lower_is_better).extend @model.result()).call(@popChart)
         else
           $(loadingDiv).show()
-          @authorize()
-          if @response == 'false'
-            clearInterval(@timeout)
-            @view.setView ''
-          else
-            @timeout ?= setInterval =>
-              @model.fetch()
-            , 10000 # we had to set this from 3000 to 10000 to pass certification on CMS171,172 which
+          #@authorize()
+          #if @response == 'false'
+            #clearInterval(@timeout)
+            #@view.setView ''
+          #else
+            #@timeout ?= setInterval =>
+          @model.fetch()
+          #  , 10000 # we had to set this from 3000 to 10000 to pass certification on CMS171,172 which
                     # have a lot of submeasures.
       rescale: ->
         if @model.isPopulated()
