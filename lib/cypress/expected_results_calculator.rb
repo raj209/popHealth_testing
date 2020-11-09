@@ -86,9 +86,15 @@ module Cypress
         @measure_result_hash[measure.hqmf_id][key]['pop_set_hash'] = measure.population_set_hash_for_key(key)
         if @callingfor
   
-          qc = CQM::QualityReport.where('measure_id' => measure.id, 'effective_date' => @effective_date,'start_date' => @start_date, "sub_id" => @sub_id).first
+          qc = CQM::QualityReport.where('measure_id' => measure.id, 'effective_date' => @effective_date,'start_date' => @start_date, "sub_id" => @sub_id,"filters" => @filters, "status.state" => {'$in': ["pending", "completed"]}).first
           if !qc
+            puts "creating query cache object"
             create_query_cache_object(@measure_result_hash, measure)
+          else
+            if qc.status.state == "pending"
+            qc.delete
+            create_query_cache_object(@measure_result_hash, measure)
+            end
           end
         end
       end

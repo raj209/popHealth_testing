@@ -195,6 +195,8 @@ module Api
         else
           #CQM::QualityReport.where('measure_id' => params[:measure_id]).destroy_all
           #CQM::IndividualResult.where('measure_id' => params[:measure_id]).destroy_all
+          qc = CQM::QualityReport.new('measure_id' => measure.id, 'effective_date' => options[:effective_date],'start_date' => options[:start_date], "sub_id" => params[:sub_id], "status" => {"state"=>"pending"}, "filters" => options[:filters])
+          qc.save!
           providers = params[:providers]
 
           CQM::Patient.all.each do |p|
