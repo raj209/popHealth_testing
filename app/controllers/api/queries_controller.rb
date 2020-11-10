@@ -178,34 +178,36 @@ module Api
       options[:test_id] = rp._id
       options['requestDocument'] = true
       begin
-        puts "Measure ID id #{params[:measure_id]}"
-        qc = CQM::QualityReport.where('measure_id' => params[:measure_id], 'effective_date' => options[:effective_date],'start_date' => options[:start_date], "filters.providers" => {'$in': params[:providers]}).first
-
+        qc = CQM::QualityReport.where('measure_id' => params[:measure_id], 'effective_date' => options[:effective_date],'start_date' => options[:start_date],  "filters.providers" => {'$in': params[:providers]}).first
         if qc.nil?
          measure = Measure.where(hqmf_id: params[:measure_id]).first
-          #if measure
-           #puts "measure is availabe? #{measure.id}"
-          #end
-         qc = CQM::QualityReport.where('measure_id' => measure.id, 'effective_date' => options[:effective_date],'start_date' => options[:start_date], "sub_id" => params[:sub_id],"filters.providers" => {'$in': params[:providers]}).first if measure.present?
-
+         qc = CQM::QualityReport.where('measure_id' => measure.id, 'effective_date' => options[:effective_date],'start_date' => options[:start_date], "filters.providers" => {'$in': params[:providers]}).first if measure.present?
         end
         if qc
-          puts "calculation is already available in cache"
-          render json: qc
+          if qc.status.state == "pending"
+            Delayed::Worker.logger.info("calculation is pending and returning nothing")
+          elsif qc.status.state == "completed"
+            if params[:sub_id]
+              Delayed::Worker.logger.info("calculation is already available in cache for measure #{measure.cms_id} with sub id #{params[:sub_id]}")
+              qc = CQM::QualityReport.where('measure_id' => measure.id, 'effective_date' => options[:effective_date],'start_date' => options[:start_date], 'sub_id' => params[:sub_id], "filters.providers" => {'$in': params[:providers]}).first 
+              render json: qc
+            else
+              Delayed::Worker.logger.info("calculation is already available in cache")
+              render json: qc
+            end
+          end
         else
           #CQM::QualityReport.where('measure_id' => params[:measure_id]).destroy_all
           #CQM::IndividualResult.where('measure_id' => params[:measure_id]).destroy_all
-          qc = CQM::QualityReport.new('measure_id' => measure.id, 'effective_date' => options[:effective_date],'start_date' => options[:start_date], "sub_id" => params[:sub_id], "status" => {"state"=>"pending"}, "filters" => options[:filters])
+          qc = CQM::QualityReport.new('measure_id' => measure.id, 'effective_date' => options[:effective_date],'start_date' => options[:start_date], "status" => {"state"=>"pending"}, "filters" => options[:filters])
           qc.save!
           providers = params[:providers]
-
           CQM::Patient.all.each do |p|
             if p.providers.first._id.to_s == providers.first
                 @pids << p._id.to_s
                 @patients << p
             end
           end
-
           begin
             qdm_patients = @patients.map(&:qdmPatient)
             measure = Measure.where(hqmf_id: params[:measure_id]).first
@@ -213,23 +215,32 @@ module Api
             options[:effectiveDateEnd] = Time.at(options[:effective_date]).strftime("%Y%m%d%H%M%S")
             options[:effectiveDate] = Time.at(options[:start_date]).strftime("%Y%m%d%H%M%S")
           if !individual_results
+            Delayed::Worker.logger.info("Starting Individual Result Calculation")
             calc_job = Cypress::CqmExecutionCalc.new(qdm_patients,
                                              @msrs,
                                              options[:test_id],
                                              options)
+            Delayed::Worker.logger.info("ending Individual Result Calculation")
             result = calc_job.execute
           end
           rescue Exception => e
-            puts "Error in calculation"
-            puts e.message
-            puts e.backtrace.inspect
+            Delayed::Worker.logger.info(e.message)
+            Delayed::Worker.logger.info(e.backtrace.inspect)
           end
             erc = Cypress::ExpectedResultsCalculator.new(@patients,options[:test_id],options[:effective_date],options[:start_date],params[:sub_id], options[:filters], true)
             @results = erc.aggregate_results_for_measures(@msrs)
+            qc = CQM::QualityReport.where('measure_id' => measure.id, 'effective_date' => options[:effective_date],'start_date' => options[:start_date], "sub_id" => params[:sub_id], "filters.providers" => {'$in': params[:providers]}).first 
+            if qc.status.state == "completed"
+              render json: qc
+            else
+              render false
+            end
             log_api_call LogAction::ADD, "Create a clinical quality calculation"
-            render json: @results
+            #render json: @results
         end
         rescue Exception => e
+          Delayed::Worker.logger.info(e.message)
+          Delayed::Worker.logger.info(e.backtrace.inspect)
           puts e.message
           puts e.backtrace.inspect
         end

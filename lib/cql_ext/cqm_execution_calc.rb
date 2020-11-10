@@ -33,9 +33,9 @@ module Cypress
                                                payload: post_data, headers: { content_type: 'application/json' })
       rescue => e
         raise e.to_s || 'Calculation failed without an error message'
-      ensure
-        Delayed::Worker.logger.info("*** Response From CQM-Execution-Service *** ")
-        Delayed::Worker.logger.info(response)
+      #ensure
+        #Delayed::Worker.logger.info("*** Response From CQM-Execution-Service *** ")
+        #Delayed::Worker.logger.info(response)
       end
 
       results = JSON.parse(response)

@@ -85,16 +85,20 @@ module Cypress
         @measure_result_hash[measure.hqmf_id][key]['measure_id'] = measure.hqmf_id
         @measure_result_hash[measure.hqmf_id][key]['pop_set_hash'] = measure.population_set_hash_for_key(key)
         if @callingfor
-  
-          qc = CQM::QualityReport.where('measure_id' => measure.id, 'effective_date' => @effective_date,'start_date' => @start_date, "sub_id" => @sub_id,"filters" => @filters, "status.state" => {'$in': ["pending", "completed"]}).first
+         begin
+          qc = CQM::QualityReport.where('measure_id' => measure.id, 'effective_date' => @effective_date,'start_date' => @start_date, "filters" => @filters, "status.state" => {'$in': ["pending", "completed"]}).first
           if !qc
-            puts "creating query cache object"
+            Delayed::Worker.logger.info("creating query cache object")
             create_query_cache_object(@measure_result_hash, measure)
           else
-            if qc.status.state == "pending"
-            qc.delete
+            Delayed::Worker.logger.info(" Delete temporary query cache object with pending status")
+            CQM::QualityReport.delete_all({'measure_id' => measure.id, 'effective_date' => @effective_date,'start_date' => @start_date, "filters" => @filters})
+            Delayed::Worker.logger.info("creating new query cache object")
             create_query_cache_object(@measure_result_hash, measure)
-            end
+          end
+          rescue Exception => e
+           Delayed::Worker.logger.info(e.message)
+           Delayed::Worker.logger.info(e.backtrace.inspect)
           end
         end
       end
@@ -132,29 +136,32 @@ module Cypress
 
     def create_query_cache_object(result, measure)
       measure_populations = %w[DENOM NUMER DENEX DENEXCEP IPP MSRPOPL MSRPOPLEX OBSERV]
-      if @sub_id.present?
+      if measure.population_sets.length > 1
+      measure.population_sets.each do |population_set|
+        sub_id = population_set.population_set_id
         qco = result[measure.hqmf_id]
         qco_saved = nil
         qco['result'] = {}
-          if qco[@sub_id].present?
+          if qco[sub_id].present?
             measure_populations.each do |pop|
-              qco[pop] = qco[@sub_id][pop]
-              qco['result'][pop] = qco[@sub_id][pop]
+              qco[pop] = qco[sub_id][pop]
+              qco['result'][pop] = qco[sub_id][pop]
             end
               qco['measure_id'] = measure._id.to_s
               qco['test_id'] = @correlation_id.to_s
               qco['effective_date'] = @effective_date
               qco['start_date'] = @start_date
-              qco['sub_id'] = @sub_id
+              qco['sub_id'] = sub_id
               qco['status'] = {}
               qco['status']['state'] = "completed"
-              qco['supplemental_data'] = qco[@sub_id]['supplemental_data']
+              qco['supplemental_data'] = qco[sub_id]['supplemental_data']
               qco['filters'] = @filters
-              qco_saved = Mongoid.default_client['query_cache'].insert_one(qco)
+              Mongoid.default_client['query_cache'].insert_one(qco)
           end
-        qco_saved
-     else
-       qco = result
+        end
+        result
+      else
+        qco = result
        qco['result'] = {}
        measure_populations.each do |pop|
          qco[pop] = qco[measure.hqmf_id].first[1][pop]
@@ -169,11 +176,11 @@ module Cypress
        qco['status']['state'] = "completed"
        qco['supplemental_data'] = qco[measure.hqmf_id].first[1]['supplemental_data']
        qco['filters'] = @filters
-       qco_saved = Mongoid.default_client['query_cache'].insert_one(qco)
-       qco_saved
-     end
-    end
-
+       qc = Mongoid.default_client['query_cache'].insert_one(qco)
+       qc
+      end
+  end
+  
     private
 
     def mean(array)
