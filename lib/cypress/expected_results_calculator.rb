@@ -160,6 +160,30 @@ module Cypress
           end
         end
         result
+      elsif measure.population_sets.length == 1 && measure.population_sets[0].stratifications.length > 0
+        measure.population_sets[0].stratifications.each do |stratification|
+        sub_id = stratification.stratification_id
+        qco = result[measure.hqmf_id]
+        qco_saved = nil
+        qco['result'] = {}
+          if qco[sub_id].present?
+            measure_populations.each do |pop|
+              qco[pop] = qco[sub_id][pop]
+              qco['result'][pop] = qco[sub_id][pop]
+            end
+              qco['measure_id'] = measure._id.to_s
+              qco['test_id'] = @correlation_id.to_s
+              qco['effective_date'] = @effective_date
+              qco['start_date'] = @start_date
+              qco['sub_id'] = sub_id
+              qco['status'] = {}
+              qco['status']['state'] = "completed"
+              qco['supplemental_data'] = qco[sub_id]['supplemental_data']
+              qco['filters'] = @filters
+              Mongoid.default_client['query_cache'].insert_one(qco)
+          end
+        end
+        result
       else
         qco = result
        qco['result'] = {}
@@ -180,7 +204,7 @@ module Cypress
        qc
       end
   end
-  
+
     private
 
     def mean(array)
