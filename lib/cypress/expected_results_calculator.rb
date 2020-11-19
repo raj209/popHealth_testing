@@ -136,8 +136,36 @@ module Cypress
 
     def create_query_cache_object(result, measure)
       measure_populations = %w[DENOM NUMER DENEX DENEXCEP IPP MSRPOPL MSRPOPLEX OBSERV]
+      #When we have multiple population sets in a measure
       if measure.population_sets.length > 1
       measure.population_sets.each do |population_set|
+        # With in population sets if we have multiple stratifications
+        if population_set.stratifications.length > 0
+          population_set.stratifications.each do |stratification|
+            sub_id = stratification.stratification_id
+            qco = result[measure.hqmf_id]
+            qco_saved = nil
+            qco['result'] = {}
+            if qco[sub_id].present?
+              measure_populations.each do |pop|
+                qco[pop] = qco[sub_id][pop]
+                qco['result'][pop] = qco[sub_id][pop]
+              end
+                qco['measure_id'] = measure._id.to_s
+                qco['test_id'] = @correlation_id.to_s
+                qco['effective_date'] = @effective_date
+                qco['start_date'] = @start_date
+                qco['sub_id'] = sub_id
+                qco['status'] = {}
+                qco['status']['state'] = "completed"
+                qco['supplemental_data'] = qco[sub_id]['supplemental_data']
+                qco['filters'] = @filters
+              Mongoid.default_client['query_cache'].insert_one(qco)
+          end
+        end
+        result
+        # if there are only multiple populations but not stratifications
+        else 
         sub_id = population_set.population_set_id
         qco = result[measure.hqmf_id]
         qco_saved = nil
@@ -159,7 +187,9 @@ module Cypress
               Mongoid.default_client['query_cache'].insert_one(qco)
           end
         end
+        end
         result
+        # Single population with multiple stratifications
       elsif measure.population_sets.length == 1 && measure.population_sets[0].stratifications.length > 0
         measure.population_sets[0].stratifications.each do |stratification|
         sub_id = stratification.stratification_id
@@ -184,6 +214,7 @@ module Cypress
           end
         end
         result
+        #single measure with single population and no stratification
       else
         qco = result
        qco['result'] = {}
