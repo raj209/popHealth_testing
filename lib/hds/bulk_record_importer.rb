@@ -267,10 +267,10 @@ class BulkRecordImporter
   def self.update_dataelements(existing, incoming)
     incoming.qdmPatient.dataElements.each do |de|
       Delayed::Worker.logger.info("Working on " +de["_type"]+ " Data Element")
-      if de["hqmfOid"] == "2.16.840.1.113883.10.20.28.4.59"
+      if de["hqmfOid"] == "2.16.840.1.113883.10.20.28.4.59" || de["hqmfOid"] == "2.16.840.1.113883.10.20.28.4.55" || de["hqmfOid"] == "2.16.840.1.113883.10.20.28.4.56"
         existing.qdmPatient.dataElements.map do |dataelement|
-          if dataelement["hqmfOid"] == "2.16.840.1.113883.10.20.28.4.59"
-            Delayed::Worker.logger.info("Assigning QDM Race element")
+          if dataelement["hqmfOid"] == "2.16.840.1.113883.10.20.28.4.59"  || dataelement["hqmfOid"] == "2.16.840.1.113883.10.20.28.4.55" || dataelement["hqmfOid"] == "2.16.840.1.113883.10.20.28.4.56"
+            Delayed::Worker.logger.info("Replacing data element in case of Gender, Race & Ethnicity")
             dataelement = de
           end
         end
