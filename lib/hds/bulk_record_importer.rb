@@ -205,6 +205,7 @@ class BulkRecordImporter
     rescue Exception => e
       puts e.message
       Delayed::Worker.logger.info(e.message)
+      Delayed::Worker.logger.info(e.backtrace)
     end
   end
 
@@ -264,36 +265,46 @@ class BulkRecordImporter
   end
 
   def self.update_dataelements(existing, incoming)
-
     incoming.qdmPatient.dataElements.each do |de|
-      query={}
-      section = "qdmPatient.dataElements"
-      query = {'_id': existing._id,section => {'$elemMatch' => {}}}
+      Delayed::Worker.logger.info("Working on " +de["_type"]+ " Data Element")
+      if de["hqmfOid"] == "2.16.840.1.113883.10.20.28.4.59"
+        existing.qdmPatient.dataElements.map do |dataelement|
+          if dataelement["hqmfOid"] == "2.16.840.1.113883.10.20.28.4.59"
+            Delayed::Worker.logger.info("Assigning QDM Race element")
+            dataelement = de
+          end
+        end
+      else
+        Delayed::Worker.logger.info("* Working on " +de["_type"]+ " Data Element *")
+        query={}
+        section = "qdmPatient.dataElements"
+        query = {'_id': existing._id,section => {'$elemMatch' => {}}}
 
-      if de["_type"]
-        query[section]['$elemMatch']["_type"] = de["_type"]
-      end
-      if de["result"]
-        query[section]['$elemMatch']["result"] = de["result"]
-      end
+        if de["_type"]
+          query[section]['$elemMatch']["_type"] = de["_type"]
+        end
+        if de["result"]
+          query[section]['$elemMatch']["result"] = de["result"]
+        end
 
-      if de["authorDatetime"]
-        query[section]['$elemMatch']["authorDatetime"] = de["authorDatetime"]
-      end
+        if de["authorDatetime"]
+          query[section]['$elemMatch']["authorDatetime"] = de["authorDatetime"]
+        end
       
-      if de["relevantPeriod"]
-        query[section]['$elemMatch']["relevantPeriod.low"] = de["relevantPeriod"][:low] if de["relevantPeriod"][:low]
-        query[section]['$elemMatch']["relevantPeriod.high"] = de["relevantPeriod"][:high] if de["relevantPeriod"][:high]
-      end
+        if de["relevantPeriod"]
+          query[section]['$elemMatch']["relevantPeriod.low"] = de["relevantPeriod"][:low] if de["relevantPeriod"][:low]
+          query[section]['$elemMatch']["relevantPeriod.high"] = de["relevantPeriod"][:high] if de["relevantPeriod"][:high]
+        end
       
-      if de["dataElementCodes"]
-        query[section]['$elemMatch']['dataElementCodes'] = de['dataElementCodes']
-      end
+        if de["dataElementCodes"]
+          query[section]['$elemMatch']['dataElementCodes'] = de['dataElementCodes']
+        end
 
-      is_available = CQM::Patient.where(query).first
-      if is_available == nil
-        existing.qdmPatient.dataElements.push(de)
-      end    
+        is_available = CQM::Patient.where(query).first
+        if is_available == nil
+          existing.qdmPatient.dataElements.push(de)
+        end 
+      end   
     end
     existing
   end
