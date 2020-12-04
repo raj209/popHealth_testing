@@ -51,7 +51,7 @@ module Cypress
         # If individual_results are provided, use the results for the measure being aggregated
         measure_individual_results = individual_results.select { |res| res['measure_id'] == measure.id.to_s } if individual_results
         # If individual_results are provided, use them.  Otherwise, look them up in the database by measure id and correlation_id
-        measure_individual_results ||= CQM::IndividualResult.where('measure_id' => measure._id, correlation_id: @correlation_id)
+        measure_individual_results ||= CQM::IndividualResult.where('measure_id' => measure._id, correlation_id: @correlation_id, 'extendedData.manual_exclusion': {'$in': [nil, false]})
 
         aggregate_results_for_measure(measure, measure_individual_results)
       end
@@ -61,8 +61,12 @@ module Cypress
     # rubocop:disable Metrics/AbcSize
     def aggregate_results_for_measure(measure, individual_results = nil)
       # If individual_results are provided, use them.  Otherwise, look them up in the database by measure id and correlation_id
-      individual_results ||= CQM::IndividualResult.where('measure_id' => measure._id, correlation_id: @correlation_id)
-
+      begin
+      individual_results ||= CQM::IndividualResult.where('measure_id': measure._id, correlation_id: @correlation_id, 'extendedData.manual_exclusion': {'$in': [nil, false]})
+      rescue Exception => e
+           Delayed::Worker.logger.info(e.message)
+           Delayed::Worker.logger.info(e.backtrace.inspect)
+      end
       observ_values = {}
       # Increment counts for each measure_populations in each individual_result
       individual_results.each do |individual_result|

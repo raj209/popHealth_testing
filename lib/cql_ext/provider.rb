@@ -6,6 +6,11 @@ module CQM
 class Provider
   include Mongoid::Tree
   include Mongoid::Attributes::Dynamic
+
+  NPI_OID = '2.16.840.1.113883.4.6'
+  TAX_ID_OID = '2.16.840.1.113883.4.2'
+  CCN_OID = '2.16.840.1.113883.4.336'.freeze
+
   field :level, type: String
   
   embeds_many :cda_identifiers, class_name: "CDAIdentifier"
@@ -44,7 +49,7 @@ class Provider
   # alias :full_name :name
 
   def full_name
-    [family_name, given_name].compact.join(", ")
+    [familyName, givenNames[0]].compact.join(", ")
   end
 
   def specialty_name
@@ -62,6 +67,44 @@ class Provider
   def self.root
     #TODO
     return "Organization"
+  end
+  def npi=(an_npi)
+    cda_id_npi = self.cda_identifiers.where(root: NPI_OID).first
+    if cda_id_npi
+      cda_id_npi.extension = an_npi
+      cda_id_npi.save!
+    else
+      self.cda_identifiers << CDAIdentifier.new(root: NPI_OID, extension: an_npi)
+    end
+  end
+
+  def npi
+    cda_id_npi = self.cda_identifiers.where(root: NPI_OID).first
+    cda_id_npi ? cda_id_npi.extension : nil
+  end
+
+  def tin=(a_tin)
+    self.cda_identifiers << CDAIdentifier.new(root: TAX_ID_OID, extension: a_tin)
+  end
+
+  def tin
+    cda_id_tin = self.cda_identifiers.where(root: TAX_ID_OID).first
+    cda_id_tin ? cda_id_tin.extension : nil
+  end
+
+  def ccn=(a_ccn)
+    cda_id_ccn = self.cda_identifiers.where(root: CCN_OID).first
+    if cda_id_ccn
+      cda_id_ccn.extension = a_ccn
+      cda_id_ccn.save!
+    else
+      self.cda_identifiers << CDAIdentifier.new(root: CCN_OID, extension: a_ccn)
+    end
+  end
+
+  def ccn
+    cda_id_ccn = self.cda_identifiers.where(root: CCN_OID).first
+    cda_id_ccn ? cda_id_ccn.extension : nil
   end
 
   def self.resolve_provider(provider_hash, patient=nil)

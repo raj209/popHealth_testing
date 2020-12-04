@@ -203,9 +203,12 @@ module Api
           qc.save!
           providers = params[:providers]
           CQM::Patient.all.each do |p|
-            if p.providers.first._id.to_s == providers.first
-                @pids << p._id.to_s
-                @patients << p
+            p.qdmPatient.extendedData["provider_performances"].each do |pp|
+              pdata = JSON.parse(pp).select{|pid| pid["provider_id"] == providers.first}
+              if pdata.present?
+                  @pids << p._id.to_s
+                  @patients << p
+              end
             end
           end
           begin
@@ -222,11 +225,16 @@ module Api
                                              options)
             Delayed::Worker.logger.info("ending Individual Result Calculation")
             result = calc_job.execute
+
           end
           rescue Exception => e
             Delayed::Worker.logger.info(e.message)
             Delayed::Worker.logger.info(e.backtrace.inspect)
           end
+            @msrs.each do |msr|
+              sub_id = msr['sub_id'].nil? ? nil : msr['sub_id']
+              QME::ManualExclusion.apply_manual_exclusions(msr._id,sub_id)
+            end
             erc = Cypress::ExpectedResultsCalculator.new(@patients,options[:test_id],options[:effective_date],options[:start_date],params[:sub_id], options[:filters], true)
             @results = erc.aggregate_results_for_measures(@msrs)
             qc = CQM::QualityReport.where('measure_id' => measure.id, 'effective_date' => options[:effective_date],'start_date' => options[:start_date], "sub_id" => params[:sub_id], "filters.providers" => {'$in': params[:providers]}).first 
@@ -279,17 +287,25 @@ module Api
     param :id, String, :desc => 'The id of the quality measure calculation', :required => true
 
     def filter
+      begin
       namekey=[]
       filters={}
       bundle = Bundle.all.sort(:version => :desc).first
-      pcache = QDM::IndividualResult.first
+      pcache = CQM::IndividualResult.first
       effective_date = pcache ? pcache['extendedData']['effective_date'].to_time.to_i : bundle.effective_date
       pcache = nil
       filter_options= {:effective_date => effective_date, :bundle_id => bundle._id}
       #authorize! :recalculate, qc
       # add filters here
+      #{"npis"=>{"0"=>{"id"=>"5fc7f8196de0b84fce0b72bc", "text"=>"Foster, Terrence (1904242082)", "code"=>""}}, 
+      #{}"default_provider_id"=>"5fa99e0e6de0b86c8230fc12", "controller"=>"api/queries", "action"=>"filter", "id"=>"40280382-6963-BF5E-0169-DA49F1E93882"}
+
       params.each_pair do |key, val|
         if not /^(controller|action|id|default_provider_id)/i === key
+          if !val.instance_of? Array
+            val = val.to_unsafe_h
+          end
+
           (0...val.length).each do |i|
             value =val[i] || val[i.to_s]
             namekey.push(key) unless key=='asOf'
@@ -329,11 +345,18 @@ module Api
       mrns = []
       records = Cypress::PatientFilter.filter(CQM::Patient, filters, filter_options)
       numrecs = records.count rescue nil
+
       unless numrecs.nil?
+        begin
         reset_patient_cache
+      rescue Exception => e
+         Delayed::Worker.logger.info(e.message)
+         Delayed::Worker.logger.info(e.backtrace.inspect)        
+      end
         records.each do |r|
-          if QDM::IndividualResult.where("extendedData.medical_record_number" => r['extendedData.medical_record_number']).exists?
-            mrns.push(r['extendedData.medical_record_number'])
+          recordid = r._id.to_s
+          if CQM::IndividualResult.where("extendedData.medical_record_number" => recordid).exists?
+            mrns.push(recordid)
           end
         end
         # At this point the mrns tell us what cat1's to keep and what cat3's to generate
@@ -344,25 +367,32 @@ module Api
         current_user.save
         #zipfilepath=filepath+'.zip'
         #QueriesController.generate_qrda1_zip(zipfilepath, mrns, current_user)
-        QDM::IndividualResult.not_in("extendedData.medical_record_number" => mrns).each { |pc|
+        CQM::IndividualResult.not_in("extendedData.medical_record_number" => mrns).each { |pc|
           val = pc['extendedData']
           ManualExclusion.find_or_create_by(:measure_id => pc['measure_id'], :sub_id => val['sub_id'],
                                             :medical_record_id => val['medical_record_number'],
                                             :rationale => namekey, :user => current_user['_id'])
         }
         # new let page recalc
-        QDM::IndividualResult.delete_all
+        CQM::IndividualResult.delete_all
+        CQM::QualityReport.delete_all
         #convert_measure_id = HealthDataStandards::CQM::Measure.where("_id" => params[:id]).first
         # force recalculate has no effect if the patients are cached !!!!!!!!!!!!!!
-        QME::QualityReport.where({measure_id: params[:id]}).each do |qc|
+        #measure_id = Measure.where(hqmf_id: params[:measure_id]).first
+
+        #CQM::QualityReport.where({measure_id: measure_id}).each do |qc|
           # updating nested attributes in Mongoid appears lame
-          qc.delete #update_attribute(:status, {:state => nil, :log => ''})
-        end
+          #qc.delete #update_attribute(:status, {:state => nil, :log => ''})
+        #end
 
       end
       #send_file(zipfilepath, {:disposition => 'attachment'})
       #provs=$mongo_client.database.collection('query_cache').find({'measure_id' => {'$in':current_user.preferences['selected_measure_ids']}}).collect{|q| q['filters']['providers'][0]}.uniq
       redirect_to '/#providers/'+params[:default_provider_id]
+      rescue Exception => e
+         Delayed::Worker.logger.info(e.message)
+         Delayed::Worker.logger.info(e.backtrace.inspect)
+      end 
     end
 
     api :POST, '/queries/:id/clearfilters', "Clear all filters and recalculate"
@@ -375,17 +405,18 @@ module Api
       current_user.preferences['c4filters']=nil
       current_user.save
       rescue Exception => e
-          puts e.message
-          puts e.backtrace.inspect
+         Delayed::Worker.logger.info(e.message)
+         Delayed::Worker.logger.info(e.backtrace.inspect)
       end 
       redirect_to '/#providers/'+params[:default_provider_id]
     end
 
     def reset_patient_cache
+      begin
       mrns=[]
       measures=[]
       subs=[]
-      pcoll=$mongo_client.database.collection('qdm_individual_results')
+      pcoll=$mongo_client.database.collection('individual_results')
       pcoll.update_many({}, {'$set': {'extendedData.manual_exclusion': nil}})
       pcoll.find().each do |pc|
         val=pc['extendedData']
@@ -400,6 +431,10 @@ module Api
         $mongo_client.database.collection('manual_exclusions').delete_many(
           {'measure_id': {'$in': measures}, 'medical_record_id': {'$in': mrns}})
       end
+      rescue Exception => e
+         Delayed::Worker.logger.info(e.message)
+         Delayed::Worker.logger.info(e.backtrace.inspect)
+      end 
     end
 
     def delete_patient_cache

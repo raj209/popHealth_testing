@@ -184,6 +184,7 @@ class BulkRecordImporter
     else # if no practice, use regular assignment
       prov_perf << providers.to_json
     end
+
     providers.each do |prov|
       prov.provider.ancestors.each do |ancestor|
         if ignore_provider_performance_dates
@@ -193,8 +194,9 @@ class BulkRecordImporter
           p_start = prov.start_date
           p_end = prov.end_date
         end
-        prov_perform = ProviderPerformance.new(start_date: p_start, end_date: p_end, provider: ancestor).to_json
-        prov_perf << prov_perform.to_json
+        prov_perform = [ProviderPerformance.new(start_date: p_start, end_date: p_end, provider: ancestor)].to_json
+
+        prov_perf << prov_perform
       end
     end
     begin

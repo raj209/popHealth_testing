@@ -1,3 +1,4 @@
+require 'cql_ext/value_set.rb'
 module Api
   class ValueSetsController < ApplicationController
     respond_to :json
@@ -13,10 +14,15 @@ module Api
       # assume user typed in a start of a word so sort
       sortfun=lambda { |x| rx=~x['display_name'] }
       if /^[0-9]+[.]/ =~ params[:oid]
-        value_set = HealthDataStandards::SVS::ValueSet.where({oid: params[:oid]}).first
+        begin
+        value_set = ValueSet.where({oid: params[:oid]}).first
+        rescue Exception => e
+         Delayed::Worker.logger.info(e.message)
+         Delayed::Worker.logger.info(e.backtrace.inspect)
+        end 
         render json: value_set.concepts.all({display_name: /#{s}/i }).sort_by!(&sortfun)
       else
-        value_set = HealthDataStandards::SVS::ValueSet.where({display_name: /#{s}/i}).all.to_a
+        value_set = ValueSet.where({display_name: /#{s}/i}).all.to_a
         value_set.sort_by!(&sortfun)
         render json: value_set
       end

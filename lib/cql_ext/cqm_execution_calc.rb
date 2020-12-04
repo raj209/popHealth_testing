@@ -82,6 +82,7 @@ module Cypress
       individual_result['correlation_id'] = @correlation_id
       individual_result['file_name'] = @options[:file_name] if @options[:file_name]
       individual_result['extendedData'] = {}
+      individual_result['extendedData']['effective_date'] = @options[:effectiveDate] if @options[:effectiveDate]
       individual_result['extendedData']['first'] = patient.givenNames[0]
       individual_result['extendedData']['last'] = patient.familyName
       individual_result['extendedData']['DOB'] = {}
