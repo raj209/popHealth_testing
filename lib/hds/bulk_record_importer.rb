@@ -87,6 +87,7 @@ class BulkRecordImporter
         begin
 
           patient_data = QRDA::Cat1::PatientImporter.instance.parse_cat1(doc)
+          Delayed::Worker.logger.info(patient_data.qdmPatient.dataElements)
           patient_data = self.update_address(patient_data, doc)
           patient_data.bundleId = Bundle.all.first.id
           bundle = Bundle.all.first

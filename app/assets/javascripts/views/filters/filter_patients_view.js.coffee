@@ -21,7 +21,7 @@ class Thorax.Views.FilterPatients extends Thorax.Views.BaseFilterView
 
   setup: ->
     @filterPatientsDialog = @$("#filterPatientsDialog")
-    @setupSelect2 "#payerTags", "api/value_sets/2.16.840.1.114222.4.11.3591.json?search="
+    @setupSelect3 "#payerTags", "api/value_sets/2.16.840.1.114222.4.11.3591.json?search="
     @setupSelect2 "#raceTags", "api/value_sets/2.16.840.1.114222.4.11.836.json?search="
     @setupSelect2 "#ethnicityTags", "api/value_sets/2.16.840.1.114222.4.11.837.json?search="
     @setupSelect2 "#problemListTags", "api/value_sets/xxx.json?search="

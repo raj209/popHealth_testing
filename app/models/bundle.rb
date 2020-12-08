@@ -60,8 +60,7 @@ class Bundle
   end
 
   def default_negation_codes
-    #ApplicationController.helpers.config_for_version(version).default_negation_codes
-    nil
+    APP_CONFIG['default_negation_codes']
   end
 
   # start data offset is the time in seconds to move data forward the number of year specified in config file

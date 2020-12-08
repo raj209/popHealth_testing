@@ -106,11 +106,14 @@ module C4Helper
     end
     
     def pluck(outfilepath, patients)
+      begin
       #, Zip::File::CREATE
       if patients && patients.length > 0
         Zip::OutputStream.open(outfilepath) do |zout|
             patients.each do |patient_hash|
               patient=patient_hash[:record]
+              provider = Provider.where('_id' => patient.provider_ids[0]).first
+              @options[:provider] = provider
               zout.put_next_entry(make_name(patient)+'.xml')
               zout << Qrda1R5.new(patient, @measures, @options).render
             end
@@ -121,6 +124,10 @@ module C4Helper
         File.open(outfilepath,'w') do |zout|
           zout.print("\x50\x4b\x05\x06\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00")
         end
+      end
+      rescue Exception => e
+            Delayed::Worker.logger.info(e.message)
+            Delayed::Worker.logger.info(e.backtrace.inspect)
       end
     end
   end

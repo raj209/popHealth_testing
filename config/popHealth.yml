@@ -43,7 +43,13 @@ defaults: &defaults
     good: 70.0
     medium: 50.0
     poor: 0.0
-
+  default_negation_codes:
+    2.16.840.1.113883.3.526.3.1184:
+      code: "854901"
+      codeSystem: "2.16.840.1.113883.6.88"
+    2.16.840.1.113883.3.526.3.1174:
+      code: "854901"
+      codeSystem: "2.16.840.1.113883.6.88"
   # QRDA CMS program
     # VALUES:
     # CMS REPORTING PROGRAM (DEFAULT): NONE

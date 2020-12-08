@@ -2,13 +2,19 @@ module CqlData
   module QRDAPostProcessor
     # checks for placeholder negation code_system
     def self.replace_negated_codes(patient, bundle)
+      begin
       patient.qdmPatient.dataElements.each do |de|
         select_negated_code(de, bundle) if de['negationRationale'] && de.codes.find { |c| c.codeSystemOid == '1.2.3.4.5.6.7.8.9.10' }
+      end
+      rescue Exception => e
+            Delayed::Worker.logger.info(e.message)
+            Delayed::Worker.logger.info(e.backtrace.inspect)
       end
     end
 
     # use "code" (which is used to store the valuset) to find an appropriate actual code to use for calculation
     def self.select_negated_code(data_element, bundle)
+      begin
       negated_element = data_element.dataElementCodes.map { |dec| dec if dec.codeSystemOid == '1.2.3.4.5.6.7.8.9.10' }.first
       negated_vs = negated_element.code
       # If Cypress has a default code selected, use it.  Otherwise, use the first in the valueset.
@@ -19,7 +25,12 @@ module CqlData
                valueset = ValueSet.where(oid: negated_vs, bundle_id: bundle.id)
                { code: valueset.first.concepts.first['code'], codeSystemOid: valueset.first.concepts.first['code_system_oid'] }
              end
+      data_element.dataElementCodes = []
       data_element.dataElementCodes << code
+      rescue Exception => e
+            Delayed::Worker.logger.info(e.message)
+            Delayed::Worker.logger.info(e.backtrace.inspect)
+      end
     end
 
     # create an issue message for any negations that are done with a single code rather than vs
