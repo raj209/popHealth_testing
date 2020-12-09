@@ -38,10 +38,13 @@ module Api
         measure_ids = params[:measure_ids] ||current_user.preferences["selected_measure_ids"]
         program = !(params[:cms_program] == nil) ? params[:cms_program].upcase : APP_CONFIG['qrda_cms_program'].upcase
 
-        provider = params[:provider_id]
-           CQM::Patient.all.each do |p|
-            if p.providers.first._id.to_s == provider
-                @patients << p
+        provider_id = params[:provider_id]
+          CQM::Patient.all.each do |p|
+            p.qdmPatient.extendedData["provider_performances"].each do |pp|
+              pdata = JSON.parse(pp).select{|pid| pid["provider_id"] == provider_id}
+              if pdata.present?
+                  @patients << p
+              end
             end
           end
 
@@ -75,7 +78,13 @@ module Api
         erc = Cypress::ExpectedResultsCalculator.new(@patients,correlation_id,effective_date,start_time)
         @results = erc.aggregate_results_for_measures(@msrs)
 
-        prov = CQM::Provider.where(id: provider).first
+        prov = CQM::Provider.where(id: provider_id).first
+
+        
+        prov['ids'] = []
+        prov['ids'].push( {"namingSystem" => "2.16.840.1.113883.4.6", "value" => "#{prov.npi}"})  if prov.npi
+        prov['ids'].push( {"namingSystem" => "2.16.840.1.113883.4.2", "value" => "#{prov.tin}"})  if prov.tin
+        prov['ids'].push( {"namingSystem" => "2.16.840.1.113883.4.336", "value" => "#{prov.ccn}"})  if prov.ccn
 
         options = {provider: prov, submission_program: program, start_time: Time.at(start_time.to_i).to_datetime, end_time: Time.at(effective_date.to_i).to_datetime}
         cat_3_xml = Qrda3R21.new(@results, @msrs, options).render
@@ -116,6 +125,9 @@ module Api
         render xml: xml, content_type: "attachment/xml"
 =end
       rescue Errno::ENOENT => e
+        Delayed::Worker.logger.info(e.message)
+        Delayed::Worker.logger.info(e.backtrace)
+
         render :status => :not_implemented, text: "No such the templates for the cat3"
       end
     end

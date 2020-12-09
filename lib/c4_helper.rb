@@ -112,8 +112,13 @@ module C4Helper
         Zip::OutputStream.open(outfilepath) do |zout|
             patients.each do |patient_hash|
               patient=patient_hash[:record]
+              #Including Provider Details In a way CQM-Report wants it
               provider = Provider.where('_id' => patient.provider_ids[0]).first
               @options[:provider] = provider
+              @options[:provider]['ids'] = []
+              @options[:provider]['ids'].push( {"namingSystem" => "2.16.840.1.113883.4.6", "value" => "#{provider.npi}"})  if provider.npi
+              @options[:provider]['ids'].push( {"namingSystem" => "2.16.840.1.113883.4.2", "value" => "#{provider.tin}"})  if provider.tin
+              @options[:provider]['ids'].push( {"namingSystem" => "2.16.840.1.113883.4.336", "value" => "#{provider.ccn}"})  if provider.ccn
               zout.put_next_entry(make_name(patient)+'.xml')
               zout << Qrda1R5.new(patient, @measures, @options).render
             end

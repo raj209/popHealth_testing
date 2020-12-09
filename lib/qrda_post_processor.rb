@@ -25,7 +25,7 @@ module CqlData
                valueset = ValueSet.where(oid: negated_vs, bundle_id: bundle.id)
                { code: valueset.first.concepts.first['code'], codeSystemOid: valueset.first.concepts.first['code_system_oid'] }
              end
-      data_element.dataElementCodes = []
+      #data_element.dataElementCodes = []
       data_element.dataElementCodes << code
       rescue Exception => e
             Delayed::Worker.logger.info(e.message)
