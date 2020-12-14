@@ -82,10 +82,21 @@ module Api
 
         
         prov['ids'] = []
-        prov['ids'].push( {"namingSystem" => "2.16.840.1.113883.4.6", "value" => "#{prov.npi}"})  if prov.npi
-        prov['ids'].push( {"namingSystem" => "2.16.840.1.113883.4.2", "value" => "#{prov.tin}"})  if prov.tin
-        prov['ids'].push( {"namingSystem" => "2.16.840.1.113883.4.336", "value" => "#{prov.ccn}"})  if prov.ccn
-
+        if prov.npi != nil
+          prov['ids'].push( {"namingSystem" => "2.16.840.1.113883.4.6", "value" => "#{prov.npi}"})  
+        else
+          prov['ids'].push( {"namingSystem" => "2.16.840.1.113883.4.6", "value" => "#{APP_CONFIG['default_practice_npi']}"}) if APP_CONFIG['default_practice_npi']
+        end
+        if prov.tin != nil
+          prov['ids'].push( {"namingSystem" => "2.16.840.1.113883.4.2", "value" => "#{prov.tin}"})  
+        else
+          prov['ids'].push( {"namingSystem" => "2.16.840.1.113883.4.2", "value" => "#{APP_CONFIG['default_practice_tin']}"}) if APP_CONFIG['default_practice_tin']
+        end
+        if prov.ccn != nil
+          prov['ids'].push( {"namingSystem" => "2.16.840.1.113883.4.336", "value" => "#{prov.ccn}"})
+        else
+          prov['ids'].push( {"namingSystem" => "2.16.840.1.113883.4.336", "value" => "#{APP_CONFIG['default_practice_ccn']}"}) if APP_CONFIG['default_practice_ccn']
+        end
         options = {provider: prov, submission_program: program, start_time: Time.at(start_time.to_i).to_datetime, end_time: Time.at(effective_date.to_i).to_datetime}
         cat_3_xml = Qrda3R21.new(@results, @msrs, options).render
         render xml: cat_3_xml, content_type: "attachment/xml"
