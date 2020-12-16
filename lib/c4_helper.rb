@@ -1,4 +1,5 @@
 require 'date'
+require_relative './cypress/scoop_and_filter.rb'
 
 module C4Helper
   class Cat1Exporter
@@ -107,11 +108,13 @@ module C4Helper
     
     def pluck(outfilepath, patients)
       begin
+      patient_scoop_and_filter = Cypress::ScoopAndFilter.new(@measures)
       #, Zip::File::CREATE
       if patients && patients.length > 0
         Zip::OutputStream.open(outfilepath) do |zout|
             patients.each do |patient_hash|
               patient=patient_hash[:record]
+              patient_scoop_and_filter.scoop_and_filter(patient)
               #Including Provider Details In a way CQM-Report wants it
               provider = Provider.where('_id' => patient.provider_ids[0]).first
               @options[:provider] = provider
