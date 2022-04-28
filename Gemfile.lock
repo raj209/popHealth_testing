@@ -142,7 +142,7 @@ GEM
     foreman (0.87.1)
     formtastic (3.1.5)
       actionpack (>= 3.2.13)
-    git (1.7.0)
+    git (1.11.0)
       rchardet (~> 1.8)
     globalid (0.4.2)
       activesupport (>= 4.2.0)
