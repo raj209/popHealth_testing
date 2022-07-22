@@ -325,7 +325,7 @@ GEM
       ansi
     typhoeus (1.4.0)
       ethon (>= 0.9.0)
-    tzinfo (1.2.7)
+    tzinfo (1.2.10)
       thread_safe (~> 0.1)
     uglifier (1.3.0)
       execjs (>= 0.3.0)
