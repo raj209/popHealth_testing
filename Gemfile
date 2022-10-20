@@ -24,7 +24,7 @@ gem 'cqm-validators', '~> 2.0.1'
 #gem 'quality-measure-engine', git: 'https://github.com/OSEHRA/quality-measure-engine.git', branch: 'bump_mongoid_v6'
 
 #gem "hqmf2js", :git=> "https://github.com/OSEHRA/hqmf2js.git"
-gem 'nokogiri', '~> 1.10'
+gem 'nokogiri', '~> 1.13'
 gem 'rubyzip','~> 1.2'
 gem 'net-ssh'
 gem 'hquery-patient-api', '1.0.4'
